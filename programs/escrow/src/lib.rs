@@ -102,7 +102,7 @@ pub fn take(ctx: Context<Take>) -> Result<()> {
         signer_seeds,
     );
 
-    close_account(close_cpi_ctx)?; // Fixed: added ? for error handling
+    close_account(close_cpi_ctx)?;
 
     Ok(())
 }
@@ -157,7 +157,7 @@ pub fn take(ctx: Context<Take>) -> Result<()> {
         );
 
         //close account function
-        close_account(close_cpi_ctx);
+        close_account(close_cpi_ctx)?;
         Ok(())
     }
 }
