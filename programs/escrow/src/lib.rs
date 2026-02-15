@@ -15,34 +15,58 @@ pub mod escrow {
 
     #[instruction(discriminator = 0)]
     pub fn make(ctx: Context<Make>, seed: u64, receive: u64, amount: u64) -> Result<()> {
+        // saving the escrow pda basically the data 
+        // which will be used throught the other instructions and this
         ctx.accounts.escrow_state.seed = seed;
         ctx.accounts.escrow_state.maker = ctx.accounts.signer.key();
         ctx.accounts.escrow_state.receive = receive;
         ctx.accounts.escrow_state.mint_a = ctx.accounts.mint_a.key();
         ctx.accounts.escrow_state.mint_b = ctx.accounts.mint_b.key();
-
         ctx.accounts.escrow_state.escrow_state_bump = ctx.bumps.escrow_state;
 
-        let decimals = ctx.accounts.mint_a.decimals;
 
-        let cpi_accounts = TransferChecked {
+        
+   
+
+        // tranfer struct
+        let transfer_accounts = TransferChecked {
             mint: ctx.accounts.mint_a.to_account_info(),
             from: ctx.accounts.mint_ata.to_account_info(),
             to: ctx.accounts.vault.to_account_info(),
             authority: ctx.accounts.signer.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-        token_interface::transfer_checked(cpi_context, amount, decimals)?;
+
+
+        // transfer from user wallet that's why uing new
+        let tranfer_cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_accounts);
+
+        // transfer function
+        transfer_checked(tranfer_cpi_ctx, amount, ctx.accounts.mint_a.decimals)?;
 
         Ok(())
     }
+   
+   
     #[instruction(discriminator = 1)]
     pub fn take(ctx: Context<Take>) -> Result<()> {
-        Ok(())
-    }
-    #[instruction(discriminator = 2)]
-    pub fn refund(ctx: Context<Refund>) -> Result<()> {
+        let cpi_accounts = TransferChecked {
+            mint: ctx.accounts.mint_b.to_account_info(),
+            from: ctx.accounts.mint_ata_b.to_account_info(),
+            to: ctx.accounts.signer_ata_b.to_account_info(),
+            authority: ctx.accounts.taker.to_account_info(),
+        };
+
+        // let decimals = ctx.accounts.mint_a.decimals;
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+        token_interface::transfer_checked(
+            cpi_context,
+            ctx.accounts.escrow_state.receive,
+            ctx.accounts.mint_b.decimals,
+        )?;
+
+
+        // signer seed to transfer from escrow pda and closing it 
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"escrow",
             ctx.accounts.signer.to_account_info().key.as_ref(),
@@ -50,31 +74,19 @@ pub mod escrow {
             &[ctx.accounts.escrow_state.escrow_state_bump],
         ]];
 
-        let decimals = ctx.accounts.mint_a.decimals;
-        let transfer_accounts = TransferChecked {
+
+        let cpi_accounts = TransferChecked {
             mint: ctx.accounts.mint_a.to_account_info(),
             from: ctx.accounts.vault.to_account_info(),
-            to: ctx.accounts.mint_ata.to_account_info(),
-            authority: ctx.accounts.escrow_state.to_account_info(),
+            to: ctx.accounts.mint_ata_a.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
         };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token_interface::transfer_checked(cpi_context, ctx.accounts.vault.amount, ctx.accounts.mint_a.decimals)?;
 
-        // let amount = ctx.accounts.escrow_state.receive;
-        // let cpi_program = ctx.accounts.token_program.to_account_info();
-        // let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-        // token_interface::transfer_checked(cpi_context, amount, decimals)?;
 
-        let tranfer_cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_accounts,
-            signer_seeds,
-        );
-
-        transfer_checked(
-            tranfer_cpi_ctx,
-            ctx.accounts.vault.amount,
-            ctx.accounts.mint_a.decimals,
-        )?;
-
+        // close account
         let close_accounts = CloseAccount {
             account: ctx.accounts.vault.to_account_info(),
             destination: ctx.accounts.signer.to_account_info(),
@@ -87,6 +99,63 @@ pub mod escrow {
             signer_seeds,
         );
 
+        close_account(close_cpi_ctx);
+
+
+        Ok(())
+    }
+    
+    
+    #[instruction(discriminator = 2)]
+    pub fn refund(ctx: Context<Refund>) -> Result<()> {
+
+        // escrow state 
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"escrow",
+            ctx.accounts.signer.to_account_info().key.as_ref(),
+            &ctx.accounts.escrow_state.seed.to_le_bytes(),
+            &[ctx.accounts.escrow_state.escrow_state_bump],
+        ]];
+
+
+        // transfer struct
+        let transfer_accounts = TransferChecked {
+            mint: ctx.accounts.mint_a.to_account_info(),
+            from: ctx.accounts.vault.to_account_info(),
+            to: ctx.accounts.mint_ata.to_account_info(),
+            authority: ctx.accounts.escrow_state.to_account_info(),
+        };
+
+
+        // transfer from pda that's why uing new_with_signer
+        let tranfer_cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            transfer_accounts,
+            signer_seeds,
+        );
+
+        // transfer function 
+        transfer_checked(
+            tranfer_cpi_ctx,
+            ctx.accounts.vault.amount,
+            ctx.accounts.mint_a.decimals,
+        )?;
+
+
+        //close struct
+        let close_accounts = CloseAccount {
+            account: ctx.accounts.vault.to_account_info(),
+            destination: ctx.accounts.signer.to_account_info(),
+            authority: ctx.accounts.escrow_state.to_account_info(),
+        };
+
+        let close_cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            close_accounts,
+            signer_seeds,
+        );
+
+        //close account function
         close_account(close_cpi_ctx);
         Ok(())
     }
@@ -140,7 +209,66 @@ pub struct Make<'i> {
 }
 
 #[derive(Accounts)]
-pub struct Take {}
+pub struct Take<'t> {
+    #[account(mut)]
+    pub taker: Signer<'t>,
+
+    /// CHECK: This is the maker from escrow_state
+    #[account(mut)]
+    pub signer: AccountInfo<'t>,
+
+    pub mint_a: InterfaceAccount<'t, Mint>,
+
+    #[account(
+        mint::token_program = token_program
+    )]
+    pub mint_b: InterfaceAccount<'t, Mint>,
+
+    #[account(
+        init_if_needed,
+        payer = taker, 
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow_state,
+        associated_token::token_program = token_program,
+    )]
+    pub mint_ata_a: InterfaceAccount<'t, TokenAccount>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint_b,
+        associated_token::authority = taker,
+        associated_token::token_program = token_program,
+    )]
+    pub mint_ata_b: InterfaceAccount<'t, TokenAccount>,
+
+    #[account(
+        init_if_needed,
+        payer = taker, 
+        associated_token::mint = mint_b,
+        associated_token::authority = taker,
+        associated_token::token_program = token_program,
+    )]
+    pub signer_ata_b: InterfaceAccount<'t, TokenAccount>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", escrow_state.maker.key().as_ref(), &escrow_state.seed.to_le_bytes()], 
+        bump,
+        close = signer,
+    )]
+    pub escrow_state: Account<'t, EscrowState>,
+
+    #[account(
+        associated_token::mint = mint_b,
+        associated_token::authority = escrow_state,
+        associated_token::token_program = token_program,
+    )]
+    pub vault: InterfaceAccount<'t, TokenAccount>,
+
+    pub token_program: Interface<'t, TokenInterface>,
+    pub associated_token_program: Program<'t, AssociatedToken>,
+    pub system_program: Program<'t, System>,
+}
 #[derive(Accounts)]
 pub struct Refund<'r> {
     #[account(mut)]
