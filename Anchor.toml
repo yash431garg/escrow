@@ -1,5 +1,6 @@
 [toolchain]
 package_manager = "yarn"
+channel = "1.18.26"
 
 [features]
 resolution = true

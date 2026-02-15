@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { AnchorEscrowQ425 } from "../target/types/anchor_escrow_q4_25";
+import { Escrow } from "../target/types/escrow";
 import { expect } from "chai";
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction, createMint, mintTo, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
@@ -8,7 +8,7 @@ describe("anchor_escrow_q4_25", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.AnchorEscrowQ425 as Program<AnchorEscrowQ425>;
+  const program = anchor.workspace.Escrow as Program<Escrow>;
 
   const maker = provider.wallet.publicKey;
   const taker = anchor.web3.Keypair.generate();
@@ -65,13 +65,13 @@ describe("anchor_escrow_q4_25", () => {
 
     // Make
     await program.methods
-      .make(seed1, new anchor.BN(depositAmount), new anchor.BN(receiveAmount))
+      .make(seed1, new anchor.BN(receiveAmount), new anchor.BN(depositAmount))
       .accountsStrict({
-        maker: maker,
+        signer: maker,
         mintA: mintA,
         mintB: mintB,
-        makerAtaA: makerAtaA,
-        escrow: escrowPda,
+        mintAta: makerAtaA,
+        escrowState: escrowPda,
         vault: vault,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -79,13 +79,17 @@ describe("anchor_escrow_q4_25", () => {
       })
       .rpc();
 
-    const escrowAccount = await program.account.escrow.fetch(escrowPda);
+    const escrowAccount = await program.account.escrowState.fetch(escrowPda);
     expect(escrowAccount.maker.toBase58()).to.equal(maker.toBase58());
     expect(escrowAccount.mintA.toBase58()).to.equal(mintA.toBase58());
     expect(escrowAccount.mintB.toBase58()).to.equal(mintB.toBase58());
-    expect(escrowAccount.receive.toNumber()).to.equal(receiveAmount);
-    expect(escrowAccount.bump).to.equal(escrowBump);
 
+    // it should show the recieve amount value
+    expect(escrowAccount.receive.toNumber()).to.equal(receiveAmount);
+    expect(escrowAccount.escrowStateBump).to.equal(escrowBump);
+
+
+    // vault balance should be more 
     const vaultBalance = (await provider.connection.getTokenAccountBalance(vault)).value.uiAmount;
     expect(vaultBalance).to.equal(depositAmount);
 
@@ -93,10 +97,10 @@ describe("anchor_escrow_q4_25", () => {
     await program.methods
       .refund()
       .accountsStrict({
-        maker: maker,
+        signer: maker,
         mintA: mintA,
-        makerAtaA: makerAtaA,
-        escrow: escrowPda,
+        mintAta: makerAtaA,
+        escrowState: escrowPda,
         vault: vault,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         tokenProgram: TOKEN_PROGRAM_ID,
