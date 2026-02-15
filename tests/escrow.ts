@@ -149,7 +149,7 @@ describe("anchor_escrow_q4_25", () => {
       .take()
       .accountsStrict({
         taker: taker.publicKey,
-        signer: maker,
+        maker: maker,
         mintA: mintA,
         mintB: mintB,
         mintAtaA: takerAtaA,

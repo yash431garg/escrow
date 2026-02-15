@@ -69,7 +69,7 @@ pub mod escrow {
         // signer seed to transfer from escrow pda and closing it 
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"escrow",
-            ctx.accounts.signer.to_account_info().key.as_ref(),
+            ctx.accounts.maker.to_account_info().key.as_ref(),
             &ctx.accounts.escrow_state.seed.to_le_bytes(),
             &[ctx.accounts.escrow_state.escrow_state_bump],
         ]];
@@ -89,7 +89,7 @@ pub mod escrow {
         // close account
         let close_accounts = CloseAccount {
             account: ctx.accounts.vault.to_account_info(),
-            destination: ctx.accounts.signer.to_account_info(),
+            destination: ctx.accounts.maker.to_account_info(),
             authority: ctx.accounts.escrow_state.to_account_info(),
         };
 
@@ -215,7 +215,7 @@ pub struct Take<'t> {
 
     /// CHECK: This is the maker from escrow_state
     #[account(mut)]
-    pub signer: AccountInfo<'t>,
+    pub maker: AccountInfo<'t>,
 
     pub mint_a: InterfaceAccount<'t, Mint>,
 
@@ -228,13 +228,14 @@ pub struct Take<'t> {
         init_if_needed,
         payer = taker, 
         associated_token::mint = mint_a,
-        associated_token::authority = escrow_state,
+        associated_token::authority = taker,
         associated_token::token_program = token_program,
     )]
     pub mint_ata_a: InterfaceAccount<'t, TokenAccount>,
 
     #[account(
-        mut,
+        init_if_needed,
+        payer = taker, 
         associated_token::mint = mint_b,
         associated_token::authority = taker,
         associated_token::token_program = token_program,
@@ -245,7 +246,7 @@ pub struct Take<'t> {
         init_if_needed,
         payer = taker, 
         associated_token::mint = mint_b,
-        associated_token::authority = taker,
+        associated_token::authority = maker,
         associated_token::token_program = token_program,
     )]
     pub signer_ata_b: InterfaceAccount<'t, TokenAccount>,
@@ -253,13 +254,15 @@ pub struct Take<'t> {
     #[account(
         mut,
         seeds = [b"escrow", escrow_state.maker.key().as_ref(), &escrow_state.seed.to_le_bytes()], 
+        has_one = maker,
         bump,
-        close = signer,
+        close = maker,
     )]
     pub escrow_state: Account<'t, EscrowState>,
 
     #[account(
-        associated_token::mint = mint_b,
+        mut,
+        associated_token::mint = mint_a,
         associated_token::authority = escrow_state,
         associated_token::token_program = token_program,
     )]
@@ -269,6 +272,8 @@ pub struct Take<'t> {
     pub associated_token_program: Program<'t, AssociatedToken>,
     pub system_program: Program<'t, System>,
 }
+
+
 #[derive(Accounts)]
 pub struct Refund<'r> {
     #[account(mut)]
