@@ -126,7 +126,7 @@ describe("anchor_escrow_q4_25", () => {
 
     // Make (again for take path)
     await program.methods
-      .make(seed2, new anchor.BN(depositAmount), new anchor.BN(receiveAmount))
+      .make(seed2, new anchor.BN(receiveAmount), new anchor.BN(depositAmount))
       .accountsStrict({
         signer: maker,
         mintA: mintA,
