@@ -69,20 +69,20 @@ pub fn take(ctx: Context<Take>) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct Take<'t> {
+pub struct Take<'info> {
     #[account(mut)]
-    pub taker: Signer<'t>,
+    pub taker: Signer<'info>,
 
     /// CHECK: This is the maker from escrow_state
     #[account(mut)]
-    pub maker: AccountInfo<'t>,
+    pub maker: AccountInfo<'info>,
 
-    pub mint_a: InterfaceAccount<'t, Mint>,
+    pub mint_a: InterfaceAccount<'info, Mint>,
 
     #[account(
         mint::token_program = token_program
     )]
-    pub mint_b: InterfaceAccount<'t, Mint>,
+    pub mint_b: InterfaceAccount<'info, Mint>,
 
     #[account(
         init_if_needed,
@@ -91,7 +91,7 @@ pub struct Take<'t> {
         associated_token::authority = taker,
         associated_token::token_program = token_program,
     )]
-    pub mint_ata_a: InterfaceAccount<'t, TokenAccount>,
+    pub mint_ata_a: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init_if_needed,
@@ -100,7 +100,7 @@ pub struct Take<'t> {
         associated_token::authority = taker,
         associated_token::token_program = token_program,
     )]
-    pub mint_ata_b: InterfaceAccount<'t, TokenAccount>,
+    pub mint_ata_b: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init_if_needed,
@@ -109,7 +109,7 @@ pub struct Take<'t> {
         associated_token::authority = maker,
         associated_token::token_program = token_program,
     )]
-    pub signer_ata_b: InterfaceAccount<'t, TokenAccount>,
+    pub signer_ata_b: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -118,7 +118,7 @@ pub struct Take<'t> {
         bump,
         close = maker,
     )]
-    pub escrow_state: Account<'t, EscrowState>,
+    pub escrow_state: Account<'info, EscrowState>,
 
     #[account(
         mut,
@@ -126,9 +126,9 @@ pub struct Take<'t> {
         associated_token::authority = escrow_state,
         associated_token::token_program = token_program,
     )]
-    pub vault: InterfaceAccount<'t, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Interface<'t, TokenInterface>,
-    pub associated_token_program: Program<'t, AssociatedToken>,
-    pub system_program: Program<'t, System>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }

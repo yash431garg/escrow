@@ -23,19 +23,19 @@ use anchor_spl::associated_token::AssociatedToken;
 
 #[derive(Accounts)]
 #[instruction(seed: u64)]
-pub struct Make<'i> {
+pub struct Make<'info> {
     #[account(mut)]
-    pub signer: Signer<'i>,
+    pub signer: Signer<'info>,
 
     #[account(
         mint::token_program = token_program
     )]
-    pub mint_a: InterfaceAccount<'i, Mint>,
+    pub mint_a: InterfaceAccount<'info, Mint>,
 
     #[account(
         mint::token_program = token_program
     )]
-    pub mint_b: InterfaceAccount<'i, Mint>,
+    pub mint_b: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
@@ -43,7 +43,7 @@ pub struct Make<'i> {
         associated_token::authority = signer,
         associated_token::token_program = token_program,
     )]
-    pub mint_ata: InterfaceAccount<'i, TokenAccount>,
+    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
@@ -52,7 +52,7 @@ pub struct Make<'i> {
         bump,
         space = EscrowState::DISCRIMINATOR.len() + EscrowState::INIT_SPACE,
     )]
-    pub escrow_state: Account<'i, EscrowState>,
+    pub escrow_state: Account<'info, EscrowState>,
 
     #[account(
         init_if_needed,
@@ -61,14 +61,14 @@ pub struct Make<'i> {
         associated_token::authority = escrow_state,
         associated_token::token_program = token_program,
     )]
-    pub vault: InterfaceAccount<'i, TokenAccount>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Interface<'i, TokenInterface>,
-    pub associated_token_program: Program<'i, AssociatedToken>,
-    pub system_program: Program<'i, System>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
-impl<'i> Make<'i> {
+impl<'info> Make<'info> {
     pub fn initialize(&mut self, seed: u64, receive: u64, bump: &MakeBumps) -> Result<()> {
         // saving the escrow pda basically the data
         // which will be used throught the other instructions and this

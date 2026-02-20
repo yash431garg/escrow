@@ -58,11 +58,11 @@ pub fn refund(ctx: Context<Refund>) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct Refund<'r> {
+pub struct Refund<'info> {
     #[account(mut)]
-    pub signer: Signer<'r>,
+    pub signer: Signer<'info>,
 
-    pub mint_a: InterfaceAccount<'r, Mint>,
+    pub mint_a: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
@@ -70,7 +70,7 @@ pub struct Refund<'r> {
         associated_token::authority = signer,
         associated_token::token_program = token_program,
     )]
-    pub mint_ata: InterfaceAccount<'r, TokenAccount>,
+    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -80,7 +80,7 @@ pub struct Refund<'r> {
         bump = escrow_state.escrow_state_bump,
         close = signer,
     )]
-    pub escrow_state: Account<'r, EscrowState>,
+    pub escrow_state: Account<'info, EscrowState>,
 
     #[account(
         mut,
@@ -88,8 +88,8 @@ pub struct Refund<'r> {
         associated_token::authority = escrow_state,
         associated_token::token_program = token_program,
     )]
-    pub vault: InterfaceAccount<'r, TokenAccount>,
-    pub token_program: Interface<'r, TokenInterface>,
-    pub associated_token_program: Program<'r, AssociatedToken>,
-    pub system_program: Program<'r, System>,
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
